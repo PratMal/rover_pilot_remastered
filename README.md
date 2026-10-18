@@ -219,7 +219,7 @@ The same framing as the rover's planned CAN-master link: `version | type | seq |
 | `0x82` DRIVE_COMMAND | PC → ESP32 | 50 Hz | `flags` u8 (bit 0 = e-stop) + 4 × int16 wheel targets FL, FR, RL, RR in 0.1 rpm (positive = forward) |
 | `0x04` DRIVE_STATUS | ESP32 → PC | 10 Hz | state, command age ms, 4 × int16 applied PWM, rx good/bad, uptime ms, reset reason, `MAX_WHEEL_RPM`×10, firmware version |
 
-States: `BOOT`, `NO_COMMAND`, `ESTOP`, `WAIT_NEUTRAL`, `DRIVING`. The firmware is open-loop: it maps target rpm to PWM using `MAX_WHEEL_RPM`, because there are no encoders yet. When the CAN master/slave firmware arrives, the same `/cmd_vel` and e-stop topics will feed the onboard bridge instead of `drive_node`, and the slaves will close the loop on their encoders.
+States: `BOOT`, `NO_COMMAND`, `ESTOP`, `WAIT_NEUTRAL`, `DRIVING`. The firmware is open-loop: it maps target rpm to PWM using `MAX_WHEEL_RPM`, because there are no encoders yet. When the CAN master/slave firmware arrives, the same `/cmd_vel` and e-stop topics will feed the onboard bridge (`telemetry_dashboard/bridge`, `drive:` section of its config) instead of `drive_node`, and the slaves will close the loop on their encoders. The bridge sends the same `DRIVE_COMMAND` (`0x82`) bytes to the CAN master, which applies the same rules (300 ms timeout, neutral interlock, e-stop latch); the firmware contract is `telemetry_dashboard/docs/FIRMWARE_INTERFACE_SPEC.md` v1.1. Stop `drive_node` before the bridge drives: only one of them should follow `/cmd_vel`.
 
 ## Known limits and warnings
 
