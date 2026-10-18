@@ -1,0 +1,5 @@
+# 28 cm wheel (measured).
+/**:
+  ros__parameters:
+    wheel_diameter_m: 0.28
+    wheel_width_m: 0.14

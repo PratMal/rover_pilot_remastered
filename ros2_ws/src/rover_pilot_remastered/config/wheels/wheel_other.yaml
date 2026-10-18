@@ -1,0 +1,6 @@
+# Second wheel type. MEASURE IT: the diameter below is a placeholder copied from the 28 cm wheel.
+# With a different diameter the same motor rpm gives a different speed, so /cmd_vel stays correct in m/s.
+/**:
+  ros__parameters:
+    wheel_diameter_m: 0.28
+    wheel_width_m: 0.14

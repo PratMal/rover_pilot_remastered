@@ -1,0 +1,13 @@
+# Stable name for the drive ESP32 (ESP32 DevKit V1): /dev/rover-drive
+# Install on the rover computer:
+#   sudo cp 99-rover-drive.rules /etc/udev/rules.d/ && sudo udevadm control --reload && sudo udevadm trigger
+#
+# Several CP2102 boards (drive ESP32, arm ESP32, later the CAN master) share one USB ID, so pin this one by its serial:
+#   udevadm info -a -n /dev/ttyUSB0 | grep '{serial}'     # with only the drive ESP32 plugged in
+# then replace REPLACE_WITH_SERIAL below. Until then the rule matches no device.
+# ID_MM_DEVICE_IGNORE keeps ModemManager from probing the port (its AT commands and line toggling reset the ESP32).
+
+# Silicon Labs CP210x
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="REPLACE_WITH_SERIAL", SYMLINK+="rover-drive", MODE="0660", GROUP="dialout", ENV{ID_MM_DEVICE_IGNORE}="1"
+# WCH CH340 (no unique serial: match the USB port path instead, see README)
+# SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", KERNELS=="1-1.2", SYMLINK+="rover-drive", MODE="0660", GROUP="dialout", ENV{ID_MM_DEVICE_IGNORE}="1"

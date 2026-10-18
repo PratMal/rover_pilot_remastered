@@ -1,0 +1,85 @@
+{
+  "crc_check": {
+    "input": "123456789",
+    "crc": 10673
+  },
+  "commands": [
+    {
+      "name": "neutral",
+      "seq": 0,
+      "estop": false,
+      "targets_rpm": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "payload": "000000000000000000",
+      "wire": "0301820101010101010101010395ae00"
+    },
+    {
+      "name": "forward_full",
+      "seq": 1,
+      "estop": false,
+      "targets_rpm": [
+        94.7,
+        94.7,
+        94.7,
+        94.7
+      ],
+      "payload": "00b303b303b303b303",
+      "wire": "040182010bb303b303b303b30384f900"
+    },
+    {
+      "name": "arc_left",
+      "seq": 2,
+      "estop": false,
+      "targets_rpm": [
+        -20.5,
+        60.0,
+        -20.5,
+        60.0
+      ],
+      "payload": "0033ff580233ff5802",
+      "wire": "040182020b33ff580233ff580290bd00"
+    },
+    {
+      "name": "estop",
+      "seq": 255,
+      "estop": true,
+      "targets_rpm": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "payload": "010000000000000000",
+      "wire": "050182ff010101010101010103b22800"
+    }
+  ],
+  "status": {
+    "seq": 7,
+    "payload": "04001400800001ff0000ff00d2040200c027090001b303020000",
+    "wire": "0501040704021402800301ff0102ff04d2040204c027090501b30302010348b600",
+    "fields": {
+      "state": 4,
+      "command_age_ms": 20,
+      "pwm": [
+        128,
+        -255,
+        0,
+        255
+      ],
+      "rx_good": 1234,
+      "rx_bad": 2,
+      "uptime_ms": 600000,
+      "reset_reason": 1,
+      "max_wheel_rpm": 94.7,
+      "firmware_version": [
+        2,
+        0,
+        0
+      ]
+    }
+  }
+}

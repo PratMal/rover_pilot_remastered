@@ -1,0 +1,39 @@
+# Shared by base_teleop (base station) and drive_node (rover). Both machines must use the same values.
+# The fitted wheel's size is in config/wheels/<wheels>.yaml, chosen with the `wheels:=` launch argument.
+# Use decimal points for every number: ROS 2 parameters are typed.
+/**:
+  ros__parameters:
+    track_width_m: 0.84        # distance between left and right wheel centres (same for both wheel types)
+    turn_track_factor: 1.0     # > 1.0 if the rover turns less than commanded (skid-steer slip)
+    max_wheel_rpm: 94.7        # wheel rpm at full PWM; MUST equal MAX_WHEEL_RPM in firmware/include/config.h
+    cmd_vel_topic: /cmd_vel
+    estop_topic: /rover/estop
+
+base_teleop:
+  ros__parameters:
+    # PS5 DualSense through joy's game_controller_node. Check with `ros2 topic echo /joy` (README).
+    axis_linear: 1             # left stick up/down: up = +1 = forward
+    axis_angular: 2            # right stick left/right: left = +1 = turn left
+    invert_linear: false
+    invert_angular: false
+    deadzone: 0.08
+    max_linear_speed: -1.0     # m/s at full stick; <= 0 = rover top speed from the wheel profile
+    max_angular_speed: -1.0    # rad/s at full stick; <= 0 = spin in place at full PWM
+    slow_button: 9             # L1 held = slow mode (-1 disables)
+    slow_scale: 0.35
+    estop_button: 1            # Circle: latch the e-stop
+    release_button: 6          # Options: release the e-stop (both sticks centred)
+    joy_timeout_s: 0.5         # joystick silent this long = e-stop
+    publish_rate_hz: 20.0
+    estop_rate_hz: 10.0
+
+drive_node:
+  ros__parameters:
+    # port: set with the launch argument port:= (default /dev/rover-drive, the udev symlink).
+    # A value here would override the launch argument, because node-specific entries take precedence.
+    baud: 115200               # MUST equal SERIAL_BAUD in firmware/include/config.h
+    rate_hz: 50.0
+    cmd_timeout_s: 0.3         # /cmd_vel older than this -> zero targets
+    estop_timeout_s: 0.5       # e-stop heartbeat older than this -> e-stop
+    require_estop_heartbeat: true  # false only for autonomous runs without a base station link
+    swap_sides: false          # true if the rover turns the wrong way (left/right motor wiring swapped)
