@@ -12,6 +12,7 @@ from geometry_msgs.msg import Twist
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
+from rclpy.signals import SignalHandlerOptions
 from sensor_msgs.msg import Joy
 from std_msgs.msg import Bool
 
@@ -56,13 +57,19 @@ class BaseTeleop(Node):
             'E-stop is latched until released.')
 
     def on_joy(self, msg: Joy) -> None:
+        was_estopped = self.logic.estopped
         for event in self.logic.on_joy(list(msg.axes), list(msg.buttons), time.monotonic()):
             self.get_logger().warn(event) if 'E-STOP' in event or 'ignored' in event else self.get_logger().info(event)
+        if self.logic.estopped != was_estopped:
+            self.publish_estop()  # tell the rover now instead of at the next 10 Hz heartbeat
 
     def publish_cmd_vel(self) -> None:
+        was_estopped = self.logic.estopped
         linear, angular, events = self.logic.tick(time.monotonic())
         for event in events:
             self.get_logger().warn(event)
+        if self.logic.estopped != was_estopped:
+            self.publish_estop()
         message = Twist()
         message.linear.x, message.angular.z = linear, angular
         self.cmd_vel.publish(message)
@@ -70,18 +77,27 @@ class BaseTeleop(Node):
     def publish_estop(self) -> None:
         self.estop.publish(Bool(data=self.logic.estopped))
 
+    def stop_rover(self) -> None:
+        """On shutdown: latch the e-stop on the rover now instead of leaving it to the 0.5 s heartbeat timeout."""
+        if not rclpy.ok():
+            return
+        for _ in range(3):
+            self.estop.publish(Bool(data=True))
+            self.cmd_vel.publish(Twist())
+            time.sleep(0.02)
+
 
 def main(args: list[str] | None = None) -> None:
-    rclpy.init(args=args)
+    # rclpy's own SIGINT handler shuts the context down before `finally` runs, so a final publish would fail. Without
+    # it, Ctrl-C (also from `ros2 launch`) raises KeyboardInterrupt and the context stays usable for stop_rover().
+    rclpy.init(args=args, signal_handler_options=SignalHandlerOptions.NO)
     node = BaseTeleop()
     try:
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
-        # Leave the rover stopped: a final latched e-stop and a zero command.
-        node.estop.publish(Bool(data=True))
-        node.cmd_vel.publish(Twist())
+        node.stop_rover()
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()

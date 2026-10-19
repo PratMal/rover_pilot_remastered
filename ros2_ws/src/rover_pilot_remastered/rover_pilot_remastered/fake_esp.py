@@ -104,7 +104,7 @@ class FakeEsp:
         with self.lock:
             age = 0xFFFF if self.controller.last_command_ms is None else min(0xFFFF, self.now_ms() - self.controller.last_command_ms)
             status = protocol.DriveStatus(self.controller.state, age, self.controller.pwm(), self.decoder.good, self.decoder.bad,
-                                          self.now_ms(), 1, self.controller.max_wheel_rpm, (2, 0, 0))
+                                          self.now_ms(), 1, self.controller.max_wheel_rpm, (2, 0, 1))
         wire = protocol.encode_packet(protocol.TYPE_DRIVE_STATUS, self.seq, protocol.drive_status_payload(status))
         self.seq = (self.seq + 1) & 0xFF
         try:

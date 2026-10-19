@@ -5,7 +5,7 @@
 
 #define FIRMWARE_VERSION_MAJOR 2
 #define FIRMWARE_VERSION_MINOR 0
-#define FIRMWARE_VERSION_PATCH 0
+#define FIRMWARE_VERSION_PATCH 1
 
 // Serial link to the onboard PC (USB). Must match the drive node's `baud` parameter.
 #define SERIAL_BAUD 115200

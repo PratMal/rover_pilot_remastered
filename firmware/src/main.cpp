@@ -90,11 +90,13 @@ void setup() {
 void loop() {
   drive::Packet packet;
   drive::DriveCommand command;
+  // One timestamp per pass. Stamping commands with a later millis() than the control update below made a command
+  // look 1 ms in the future, which the timeout check read as ~49 days old: a spurious stop while driving.
   const uint32_t now_ms = millis();
 
   while (Serial.available() > 0) {
     if (decoder.feed(static_cast<uint8_t>(Serial.read()), packet) && drive::parse_drive_command(packet, command)) {
-      controller.on_command(command, millis());
+      controller.on_command(command, now_ms);
       if (!controller.motors_enabled()) apply_outputs();  // stops take effect immediately
     }
   }

@@ -34,13 +34,16 @@ PS5 ─▶ joy/game_controller_node ─/joy─▶ base_teleop ─┬─ /cmd_vel
 
 The e-stop starts **latched**. After launching, centre the sticks and press Options to start driving.
 
+**Connect the PS5 by USB cable at the base station.** The "controller lost" stop below relies on `joy` noticing the disconnect, which a USB unplug triggers at once. Over Bluetooth, a controller whose battery dies or that goes out of range can stay "connected" for several seconds while `joy` keeps repeating the last stick position, so the rover keeps moving until Linux gives up on it. If you must use Bluetooth, keep the controller charged and close to the base station, and remember Circle and the kill switch.
+
 ## Safety behaviour
 
 | Situation | What happens | Time to stop | To drive again |
 |---|---|---|---|
 | Circle pressed | E-stop latched at the base station, sent to the rover | next command (≤ 20 ms) | Options with sticks centred |
-| PS5 disconnected / `joy` node dies | `base_teleop` latches the e-stop | ≤ 0.5 s | reconnect, Options with sticks centred |
-| Base station laptop dies, `base_teleop` stopped, or **radio link lost** | E-stop heartbeat goes stale on the rover; `drive_node` sends the e-stop flag | ≤ 0.5 s | link back, Options with sticks centred |
+| PS5 unplugged (USB) / `joy` node dies | `base_teleop` latches the e-stop | ≤ 0.5 s | reconnect, Options with sticks centred |
+| `base_teleop` stopped with Ctrl-C | It sends a final e-stop before exiting | next command (≤ 20 ms) | restart, Options with sticks centred |
+| Base station laptop dies or **radio link lost** | E-stop heartbeat goes stale on the rover; `drive_node` sends the e-stop flag | ≤ 0.5 s | link back, Options with sticks centred |
 | `drive_node` killed / crashes, rover laptop sleeps | No commands reach the ESP32; firmware timeout | ≤ 0.3 s | restart `drive_node`; the ESP32 waits for centred sticks |
 | USB cable unplugged | Same as above | ≤ 0.3 s | replug; the ESP32 waits for centred sticks |
 | ESP32 resets or powers up | Motors off at boot | immediate | the ESP32 waits for centred sticks |
@@ -160,13 +163,15 @@ The rover log shows every state change (`stopped: e-stop`, `driving enabled`, `E
    ```bash
    python3 ~/rover_pilot_remastered/tools/wheel_test.py /dev/rover-drive
    ```
-   It spins FL, FR, RL and RR forward one at a time, then all forward, then a right turn in place. Check that each named wheel turns **forward**. If one is wrong, fix its entry (pins or `forward_level`) in `firmware/include/config.h` and reflash.
+   It sends neutral until the ESP32 is ready (opening the port may reset it), then spins FL, FR, RL and RR forward one at a time, then all forward, then a right turn in place. Each line shows the firmware version: it must say **fw 2.0.1**, otherwise the new firmware is not flashed. Check that each named wheel turns **forward**. If one is wrong, fix its entry (pins or `forward_level`) in `firmware/include/config.h` and reflash.
+
+   **Expect left and right to be swapped.** The pin names in `config.h` come from the old firmware, whose "left turn" drove the `leftFront`/`leftBack` pins forward. If the old rover really turned left that way, those pins drive the **right** wheels. If "FL forward only" spins the front-right wheel, swap the left and right entries in `kDriveMotors` (FL↔FR, RL↔RR) and reflash, rather than using `swap_sides`, so FL/FR/RL/RR mean the same everywhere.
 2. **Joystick:**
    - Left stick up = forward.
    - Right stick right = rover turns **right**. If it turns left while forward is correct, set `swap_sides: true` in `config/drive.yaml` (left/right motors wired the other way round). Don't invert the joystick axis: `/cmd_vel` must stay correct for Nav2.
    - L1 = slower.
 3. **Stops**; each must stop the wheels within the time in the safety table:
-   - Circle;
+   - Circle (the rover stops within about 0.1 s);
    - pressing Options with a stick pushed (must be refused);
    - unplugging the PS5;
    - `Ctrl-C` on the base station launch;

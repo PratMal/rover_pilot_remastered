@@ -21,6 +21,12 @@ int16_t get_i16(const uint8_t* in) {
   return static_cast<int16_t>(static_cast<uint16_t>(in[0]) | (static_cast<uint16_t>(in[1]) << 8));
 }
 
+// Milliseconds from `then` to `now`, wraparound-safe; 0 if `then` is (slightly) after `now`.
+uint32_t elapsed_ms(uint32_t now, uint32_t then) {
+  const int32_t delta = static_cast<int32_t>(now - then);
+  return delta > 0 ? static_cast<uint32_t>(delta) : 0;
+}
+
 }  // namespace
 
 uint16_t crc16(const uint8_t* data, size_t len) {
@@ -166,11 +172,11 @@ int16_t DriveController::target_pwm(int wheel) const {
 }
 
 void DriveController::update(uint32_t now_ms) {
-  const uint32_t dt_ms = have_update_ ? now_ms - last_update_ms_ : 0;
+  const uint32_t dt_ms = have_update_ ? elapsed_ms(now_ms, last_update_ms_) : 0;
   last_update_ms_ = now_ms;
   have_update_ = true;
 
-  if ((state_ == State::Driving || state_ == State::WaitNeutral) && now_ms - last_command_ms_ > config_.command_timeout_ms) {
+  if ((state_ == State::Driving || state_ == State::WaitNeutral) && elapsed_ms(now_ms, last_command_ms_) > config_.command_timeout_ms) {
     stop(State::NoCommand);
   }
   if (state_ != State::Driving) return;
@@ -187,7 +193,7 @@ void DriveController::update(uint32_t now_ms) {
 }
 
 uint32_t DriveController::command_age_ms(uint32_t now_ms) const {
-  return have_command_ ? now_ms - last_command_ms_ : 0xFFFFFFFFu;
+  return have_command_ ? elapsed_ms(now_ms, last_command_ms_) : 0xFFFFFFFFu;
 }
 
 size_t encode_status(const StatusInfo& status, uint8_t* out) {

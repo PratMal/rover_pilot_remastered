@@ -137,9 +137,12 @@ def drive_command_payload(estop: bool, targets_rpm: list[float] | tuple[float, .
 
 
 def parse_drive_command(payload: bytes) -> tuple[bool, tuple[float, ...]] | None:
+    """(estop, targets rpm), or None if the length is wrong or a reserved flag bit is set (as the firmware does)."""
     if len(payload) != _COMMAND.size:
         return None
     flags, *raw = _COMMAND.unpack(payload)
+    if flags & ~FLAG_ESTOP:
+        return None
     return bool(flags & FLAG_ESTOP), tuple(value / 10 for value in raw)
 
 

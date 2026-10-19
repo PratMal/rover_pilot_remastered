@@ -92,3 +92,56 @@ def test_joystick_to_wheels_through_ros():
         node.destroy_node()
         rclpy.shutdown()
         fake.stop_event.set()
+
+
+def test_stopping_the_base_station_latches_the_estop_at_once():
+    """Ctrl-C on base_teleop sends a final e-stop, so the rover stops well before the 0.5 s heartbeat timeout."""
+    fake, path = fake_esp.start_in_background()
+    drive, teleop = start('drive_node', '-p', f'port:={path}'), start('base_teleop')
+    rclpy.init()
+    node = rclpy.create_node('fake_joystick_shutdown')
+    publisher = node.create_publisher(Joy, '/joy', 1)
+
+    def esp():
+        with fake.lock:
+            return fake.controller.state, fake.controller.pwm()
+
+    def publish(left_y=0.0, pressed=()):
+        message = Joy()
+        message.axes = [0.0, left_y, 0.0, 0.0, 1.0, 1.0]
+        message.buttons = [1 if index in pressed else 0 for index in range(15)]
+        publisher.publish(message)
+
+    def wait(condition, timeout, **joy):
+        started = time.monotonic()
+        while time.monotonic() - started < timeout:
+            publish(**joy)
+            if condition(esp()):
+                return True
+            time.sleep(0.02)
+        return False
+
+    try:
+        assert wait(lambda s: s[0] == fake_esp.ESTOP, 15.0), esp()  # discovery; the teleop starts latched
+        wait(lambda s: False, 0.2, pressed=(OPTIONS,))
+        assert wait(lambda s: s[0] == fake_esp.DRIVING and s[1][0] > 100, 3.0, left_y=0.5), esp()
+        teleop.send_signal(signal.SIGINT)
+        started = time.monotonic()
+        while esp()[0] != fake_esp.ESTOP and time.monotonic() - started < 2.0:
+            time.sleep(0.005)
+        elapsed = time.monotonic() - started
+        assert esp() == (fake_esp.ESTOP, STOPPED)
+        assert elapsed < 0.35, elapsed  # the heartbeat timeout alone would take 0.5-0.6 s
+        teleop.wait(timeout=5)
+        assert 'Traceback' not in teleop.stdout.read()
+    finally:
+        for process in (drive, teleop):
+            if process.poll() is None:
+                process.send_signal(signal.SIGINT)
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+        node.destroy_node()
+        rclpy.shutdown()
+        fake.stop_event.set()

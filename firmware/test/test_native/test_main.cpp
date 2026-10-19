@@ -198,6 +198,19 @@ void test_millis_wraparound_is_handled() {
   TEST_ASSERT_EQUAL(State::Driving, controller.state());
 }
 
+void test_a_command_stamped_after_the_update_time_is_not_a_timeout() {
+  // main.cpp once stamped commands with a later millis() than the control update in the same loop pass.
+  DriveController controller(kConfig);
+  controller.on_command(command(false, 0, 0, 0, 0), 1000);
+  controller.on_command(command(false, 600, 600, 600, 600), 1001);
+  controller.update(1000);
+  TEST_ASSERT_EQUAL(State::Driving, controller.state());
+  TEST_ASSERT_TRUE(controller.pwm(0) > 0);
+  TEST_ASSERT_EQUAL_UINT32(0, controller.command_age_ms(1000));
+  controller.update(1302);
+  TEST_ASSERT_EQUAL(State::NoCommand, controller.state());  // a real timeout still stops
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_crc_check_value);
@@ -213,5 +226,6 @@ int main(int, char**) {
   RUN_TEST(test_estop_state_does_not_time_out_into_motion);
   RUN_TEST(test_slew_limit_ramps_up_but_stops_immediately);
   RUN_TEST(test_millis_wraparound_is_handled);
+  RUN_TEST(test_a_command_stamped_after_the_update_time_is_not_a_timeout);
   return UNITY_END();
 }

@@ -51,6 +51,12 @@ def test_targets_are_clamped_and_never_hit_the_sentinel():
     assert targets == (3276.7, -3276.7, 0.0, -0.1)
 
 
+def test_reserved_flag_bits_are_rejected_like_the_firmware():
+    assert protocol.parse_drive_command(protocol.drive_command_payload(True, (0.0,) * 4)) == (True, (0.0,) * 4)
+    assert protocol.parse_drive_command(b'\x02' + bytes(8)) is None
+    assert protocol.parse_drive_command(bytes(8)) is None
+
+
 def test_vector_files_are_up_to_date():
     root = Path(__file__).resolve().parents[4]
     script = root / 'tools' / 'gen_test_vectors.py'
