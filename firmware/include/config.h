@@ -5,7 +5,7 @@
 
 #define FIRMWARE_VERSION_MAJOR 2
 #define FIRMWARE_VERSION_MINOR 0
-#define FIRMWARE_VERSION_PATCH 1
+#define FIRMWARE_VERSION_PATCH 2
 
 // Serial link to the onboard PC (USB). Must match the drive node's `baud` parameter.
 #define SERIAL_BAUD 115200
@@ -20,6 +20,7 @@
 #define SLEW_PWM_PER_S 1020.0f  // max PWM change per second while driving (255 in 250 ms); 0 = unlimited. Stops are immediate.
 
 // Timing.
+#define LOOP_WATCHDOG_MS 1000  // a loop that stops running for this long resets the ESP32 (it boots with motors off)
 #define CONTROL_PERIOD_MS 10  // state machine + PWM update
 #define STATUS_PERIOD_MS 100  // DRIVE_STATUS to the PC
 

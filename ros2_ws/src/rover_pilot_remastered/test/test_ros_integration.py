@@ -145,3 +145,30 @@ def test_stopping_the_base_station_latches_the_estop_at_once():
         node.destroy_node()
         rclpy.shutdown()
         fake.stop_event.set()
+
+
+def test_the_double_sigint_from_ros2_launch_still_shuts_down_cleanly():
+    """Ctrl-C on `ros2 launch` reaches each node twice (the terminal's SIGINT to the process group, then the one launch
+    forwards). The second used to interrupt the final e-stop and end the node with a KeyboardInterrupt traceback."""
+    fake, path = fake_esp.start_in_background()
+    drive, teleop = start('drive_node', '-p', f'port:={path}'), start('base_teleop')
+    try:
+        started = time.monotonic()
+        while fake.decoder.good < 20 and time.monotonic() - started < 15.0:  # the drive node is sending commands
+            time.sleep(0.05)
+        time.sleep(1.0)  # and the teleop is up
+        for process in (teleop, drive):
+            process.send_signal(signal.SIGINT)
+            time.sleep(0.005)
+            process.send_signal(signal.SIGINT)
+        for name, process in (('base_teleop', teleop), ('drive_node', drive)):
+            assert process.wait(timeout=5) == 0, name
+            output = process.stdout.read()
+            assert 'Traceback' not in output, f'{name}:\n{output}'
+        with fake.lock:
+            assert fake.controller.state == fake_esp.ESTOP  # the final e-stop still went out
+    finally:
+        for process in (drive, teleop):
+            if process.poll() is None:
+                process.kill()
+        fake.stop_event.set()

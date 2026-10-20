@@ -8,6 +8,7 @@
 // Nothing but protocol packets is written to the serial line.
 #include <Arduino.h>
 #include <esp_system.h>
+#include <esp_task_wdt.h>
 
 #include "config.h"
 #include "drive_core.h"
@@ -85,6 +86,13 @@ void setup() {
   reset_reason = static_cast<uint8_t>(esp_reset_reason());
   Serial.begin(SERIAL_BAUD);
   enableLoopWDT();  // a hung loop resets the ESP32, which boots with motors off
+#if ESP_ARDUINO_VERSION_MAJOR >= 3
+  // Arduino's task watchdog fires after 5 s: a hung loop would keep the last PWM that long, because the 300 ms command
+  // timeout runs in that same loop. One pass takes about 1 ms, so 1 s never fires in normal running. Only the timeout
+  // changes; the idle task watched by default (CPU 0) stays watched. (Core 2.x keeps its 5 s default.)
+  const esp_task_wdt_config_t watchdog = {LOOP_WATCHDOG_MS, 1u << 0, true};
+  esp_task_wdt_reconfigure(&watchdog);
+#endif
 }
 
 void loop() {

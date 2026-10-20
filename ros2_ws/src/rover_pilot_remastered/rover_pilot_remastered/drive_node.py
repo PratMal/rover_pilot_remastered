@@ -6,6 +6,7 @@ the base station's e-stop is latched or its heartbeat is missing.
 """
 from __future__ import annotations
 
+import signal
 import time
 
 import rclpy
@@ -194,6 +195,9 @@ def main(args: list[str] | None = None) -> None:
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
+        # One Ctrl-C on `ros2 launch` delivers SIGINT twice: from the terminal, then forwarded by launch. The second
+        # one must not cut the final e-stop short (or end the node with a traceback).
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
         node.stop_motors()
         node.destroy_node()
         if rclpy.ok():

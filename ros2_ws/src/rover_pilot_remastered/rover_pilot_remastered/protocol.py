@@ -10,6 +10,7 @@ Packets:
 """
 from __future__ import annotations
 
+import math
 import struct
 from dataclasses import dataclass
 
@@ -129,10 +130,11 @@ class PacketDecoder:
 
 
 def drive_command_payload(estop: bool, targets_rpm: list[float] | tuple[float, ...]) -> bytes:
-    """Payload of DRIVE_COMMAND: wheel targets FL, FR, RL, RR in rpm (positive = forward), 0.1 rpm resolution."""
+    """Payload of DRIVE_COMMAND: wheel targets FL, FR, RL, RR in rpm (positive = forward), 0.1 rpm resolution.
+    A non-finite target is sent as 0: the drive node's 50 Hz loop must never fail on a bad value."""
     if len(targets_rpm) != 4:
         raise ValueError('need four wheel targets (FL, FR, RL, RR)')
-    raw = [max(-32767, min(32767, round(rpm * 10))) for rpm in targets_rpm]
+    raw = [max(-32767, min(32767, round(rpm * 10))) if math.isfinite(rpm) else 0 for rpm in targets_rpm]
     return _COMMAND.pack(FLAG_ESTOP if estop else 0, *raw)
 
 

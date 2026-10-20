@@ -51,6 +51,11 @@ def test_targets_are_clamped_and_never_hit_the_sentinel():
     assert targets == (3276.7, -3276.7, 0.0, -0.1)
 
 
+def test_non_finite_targets_are_sent_as_zero():
+    estop, targets = protocol.parse_drive_command(protocol.drive_command_payload(False, (float('nan'), float('inf'), 1.0, 0.0)))
+    assert targets == (0.0, 0.0, 1.0, 0.0)
+
+
 def test_reserved_flag_bits_are_rejected_like_the_firmware():
     assert protocol.parse_drive_command(protocol.drive_command_payload(True, (0.0,) * 4)) == (True, (0.0,) * 4)
     assert protocol.parse_drive_command(b'\x02' + bytes(8)) is None

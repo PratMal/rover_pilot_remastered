@@ -33,7 +33,7 @@ def twist_to_wheel_rpm(linear_x: float, angular_z: float, geometry: DriveGeometr
     """Returns wheel targets (FL, FR, RL, RR) in rpm, positive = forward.
 
     If a side would exceed max_wheel_rpm both sides are scaled down together, which keeps the turning radius.
-    Non-finite inputs give zero.
+    Non-finite inputs, and inputs so large that the wheel speeds overflow, give zero.
     """
     if not (math.isfinite(linear_x) and math.isfinite(angular_z)):
         return (0.0, 0.0, 0.0, 0.0)
@@ -42,6 +42,8 @@ def twist_to_wheel_rpm(linear_x: float, angular_z: float, geometry: DriveGeometr
     left = (linear_x - angular_z * half_track) * rpm_per_mps
     right = (linear_x + angular_z * half_track) * rpm_per_mps
     peak = max(abs(left), abs(right))
+    if not math.isfinite(peak):  # e.g. linear_x = 1e308: scaling inf down would give NaN, which stops the drive node
+        return (0.0, 0.0, 0.0, 0.0)
     if peak > geometry.max_wheel_rpm:
         scale = geometry.max_wheel_rpm / peak
         left, right = left * scale, right * scale

@@ -35,5 +35,9 @@ def test_other_wheel_size_changes_rpm_not_speed():
 
 def test_bad_inputs():
     assert twist_to_wheel_rpm(float('nan'), 0.0, ROVER) == (0.0, 0.0, 0.0, 0.0)
+    # Finite but absurd (a typo in `ros2 topic pub`, a misbehaving planner): the wheel speeds overflow to inf, and
+    # scaling them made NaN, which crashed the drive node's timer. Now zero.
+    for linear, angular in ((1e308, 0.0), (0.0, -1e308), (1e308, 1e308)):
+        assert twist_to_wheel_rpm(linear, angular, ROVER) == (0.0, 0.0, 0.0, 0.0)
     with pytest.raises(ValueError):
         DriveGeometry(wheel_diameter_m=0.0, track_width_m=0.84, max_wheel_rpm=94.7)

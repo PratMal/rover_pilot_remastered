@@ -41,12 +41,13 @@ The e-stop starts **latched**. After launching, centre the sticks and press Opti
 | Situation | What happens | Time to stop | To drive again |
 |---|---|---|---|
 | Circle pressed | E-stop latched at the base station, sent to the rover | next command (≤ 20 ms) | Options with sticks centred |
-| PS5 unplugged (USB) / `joy` node dies | `base_teleop` latches the e-stop | ≤ 0.5 s | reconnect, Options with sticks centred |
+| PS5 unplugged (USB) / `joy` node dies | `base_teleop` latches the e-stop | ≤ 0.6 s (0.5 s joystick timeout + one tick) | reconnect, Options with sticks centred |
 | `base_teleop` stopped with Ctrl-C | It sends a final e-stop before exiting | next command (≤ 20 ms) | restart, Options with sticks centred |
-| Base station laptop dies or **radio link lost** | E-stop heartbeat goes stale on the rover; `drive_node` sends the e-stop flag | ≤ 0.5 s | link back, Options with sticks centred |
+| Base station laptop dies or **radio link lost** | E-stop heartbeat goes stale on the rover; `drive_node` sends the e-stop flag | about 0.5 s | link back, Options with sticks centred |
 | `drive_node` killed / crashes, rover laptop sleeps | No commands reach the ESP32; firmware timeout | ≤ 0.3 s | restart `drive_node`; the ESP32 waits for centred sticks |
 | USB cable unplugged | Same as above | ≤ 0.3 s | replug; the ESP32 waits for centred sticks |
 | ESP32 resets or powers up | Motors off at boot | immediate | the ESP32 waits for centred sticks |
+| ESP32 firmware hangs | The loop watchdog resets it; motors off at boot | ≤ 1 s | the ESP32 waits for centred sticks |
 | Commands resume while a stick is pushed | The ESP32 stays stopped (`WAIT_NEUTRAL`) | — | centre the sticks |
 | Kill switch | Battery cut | immediate | switch on, then as above |
 
@@ -70,6 +71,7 @@ ros2_ws/src/rover_pilot_remastered/   ROS 2 Humble package (Python)
   test/                        pytest (protocol, kinematics, e-stop logic, end-to-end, ROS integration)
 tools/gen_test_vectors.py      generates byte-exact test vectors shared by the C++ and Python tests
 tools/wheel_test.py            ROS-free wheel identification test for the bench
+tools/rehearsal.py             dress rehearsal of the bench test against the simulated ESP32 and PS5
 udev/99-rover-drive.rules      stable /dev/rover-drive name for the ESP32
 ```
 
@@ -84,7 +86,7 @@ pio test -e native                          # optional: unit tests on your compu
 pio run -e esp32doit-devkit-v1 -t upload    # build and flash over USB
 ```
 
-It builds on both Arduino-ESP32 core 3.x (pioarduino) and 2.x (`espressif32@6.x`). Settings are in `include/config.h`: pins and directions are copied from the old firmware, and the defaults are a 300 ms timeout, `MAX_WHEEL_RPM` 94.7 and a 250 ms ramp to full speed.
+It builds on both Arduino-ESP32 core 3.x (pioarduino) and 2.x (`espressif32@6.x`). Settings are in `include/config.h`: pins and directions are copied from the old firmware, and the defaults are a 300 ms timeout, `MAX_WHEEL_RPM` 94.7, a 250 ms ramp to full speed and a 1 s loop watchdog (Arduino core 3.x; core 2.x keeps its 5 s default).
 
 GPIO 12 (left-back direction) is an ESP32 **strapping pin**. If the board ever fails to boot with the motor drivers connected, move that signal to a free non-strapping GPIO and update `config.h`.
 
@@ -142,6 +144,8 @@ export ROS_DOMAIN_ID=<your team's domain id>
 
 Check the link: run `ros2 topic list` on one machine while a node runs on the other.
 
+**Rebuild after every change.** `ros2 launch` runs the installed copy of the package. With some setuptools versions `--symlink-install` still copies the files, so an edited `config/drive.yaml`, a wheel profile or updated code takes effect only after `cd ~/rover_pilot_remastered/ros2_ws && colcon build --symlink-install` (about a second) and a relaunch. `python3 tools/rehearsal.py` checks this first.
+
 ## Daily workflow
 
 1. Kill switch on; the rover laptop boots.
@@ -163,7 +167,7 @@ The rover log shows every state change (`stopped: e-stop`, `driving enabled`, `E
    ```bash
    python3 ~/rover_pilot_remastered/tools/wheel_test.py /dev/rover-drive
    ```
-   It sends neutral until the ESP32 is ready (opening the port may reset it), then spins FL, FR, RL and RR forward one at a time, then all forward, then a right turn in place. Each line shows the firmware version: it must say **fw 2.0.1**, otherwise the new firmware is not flashed. Check that each named wheel turns **forward**. If one is wrong, fix its entry (pins or `forward_level`) in `firmware/include/config.h` and reflash.
+   It sends neutral until the ESP32 is ready (opening the port may reset it), then spins FL, FR, RL and RR forward one at a time, then all forward, then a right turn in place. Each line shows the firmware version: it must say **fw 2.0.2**, otherwise the new firmware is not flashed. Check that each named wheel turns **forward**. If one is wrong, fix its entry (pins or `forward_level`) in `firmware/include/config.h` and reflash.
 
    **Expect left and right to be swapped.** The pin names in `config.h` come from the old firmware, whose "left turn" drove the `leftFront`/`leftBack` pins forward. If the old rover really turned left that way, those pins drive the **right** wheels. If "FL forward only" spins the front-right wheel, swap the left and right entries in `kDriveMotors` (FL↔FR, RL↔RR) and reflash, rather than using `swap_sides`, so FL/FR/RL/RR mean the same everywhere.
 2. **Joystick:**
@@ -182,7 +186,7 @@ The rover log shows every state change (`stopped: e-stop`, `driving enabled`, `E
 
 ## Configuration
 
-`config/drive.yaml` (both machines) and `config/wheels/*.yaml`. Use decimal points for numbers: ROS 2 parameters are typed.
+`config/drive.yaml` (both machines) and `config/wheels/*.yaml`. Use decimal points for numbers: ROS 2 parameters are typed. After editing, rebuild (`colcon build --symlink-install`) on that machine and relaunch.
 
 | Parameter | Default | Meaning |
 |---|---|---|
@@ -207,6 +211,9 @@ ros2 run rover_pilot_remastered fake_esp --link /tmp/rover-drive
 ros2 launch rover_pilot_remastered rover.launch.py port:=/tmp/rover-drive
 ros2 launch rover_pilot_remastered base_station.launch.py
 
+# Dress rehearsal of the whole bench test: real launch files, simulated ESP32 and PS5, every stop timed (about 1 min)
+python3 tools/rehearsal.py                                          # ROS sourced and the workspace built; exit 1 on any FAIL
+
 # Test suites
 cd ros2_ws/src/rover_pilot_remastered && python3 -m pytest test   # protocol, kinematics, e-stop logic, end-to-end, ROS integration
 cd firmware && pio test -e native                                  # firmware state machine and protocol
@@ -224,7 +231,7 @@ The same framing as the rover's planned CAN-master link: `version | type | seq |
 | `0x82` DRIVE_COMMAND | PC → ESP32 | 50 Hz | `flags` u8 (bit 0 = e-stop) + 4 × int16 wheel targets FL, FR, RL, RR in 0.1 rpm (positive = forward) |
 | `0x04` DRIVE_STATUS | ESP32 → PC | 10 Hz | state, command age ms, 4 × int16 applied PWM, rx good/bad, uptime ms, reset reason, `MAX_WHEEL_RPM`×10, firmware version |
 
-States: `BOOT`, `NO_COMMAND`, `ESTOP`, `WAIT_NEUTRAL`, `DRIVING`. The firmware is open-loop: it maps target rpm to PWM using `MAX_WHEEL_RPM`, because there are no encoders yet. When the CAN master/slave firmware arrives, the same `/cmd_vel` and e-stop topics will feed the onboard bridge (`telemetry_dashboard/bridge`, `drive:` section of its config) instead of `drive_node`, and the slaves will close the loop on their encoders. The bridge sends the same `DRIVE_COMMAND` (`0x82`) bytes to the CAN master, which applies the same rules (300 ms timeout, neutral interlock, e-stop latch); the firmware contract is `telemetry_dashboard/docs/FIRMWARE_INTERFACE_SPEC.md` v1.1. Stop `drive_node` before the bridge drives: only one of them should follow `/cmd_vel`.
+States: `BOOT`, `NO_COMMAND`, `ESTOP`, `WAIT_NEUTRAL`, `DRIVING`. The firmware is open-loop: it maps target rpm to PWM using `MAX_WHEEL_RPM`, because there are no encoders yet. When the CAN master/slave firmware arrives, the same `/cmd_vel` and e-stop topics will feed the onboard bridge (`telemetry_dashboard/bridge`, `drive:` section of its config) instead of `drive_node`, and the slaves will close the loop on their encoders. The bridge sends the same `DRIVE_COMMAND` (`0x82`) bytes to the CAN master, which applies the same rules (300 ms timeout, neutral interlock, e-stop latch); the firmware contract is `telemetry_dashboard/docs/FIRMWARE_INTERFACE_SPEC.md` (v2.0 on the `ethernet-udp` branch, v1.1 on `usb-serial`). Stop `drive_node` before the bridge drives: only one of them should follow `/cmd_vel`.
 
 ## Known limits and warnings
 
