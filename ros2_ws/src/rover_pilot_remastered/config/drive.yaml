@@ -19,10 +19,10 @@ base_teleop:
     deadzone: 0.08
     max_linear_speed: -1.0     # m/s at full stick; <= 0 = rover top speed from the wheel profile
     max_angular_speed: -1.0    # rad/s at full stick; <= 0 = spin in place at full PWM
-    slow_button: 9             # L1 held = slow mode (-1 disables)
+    slow_button: 6             # L1 held = slow mode (-1 disables)
     slow_scale: 0.35
-    estop_button: 1            # Circle: latch the e-stop
-    release_button: 6          # Options: release the e-stop (both sticks centred)
+    estop_button: 3            # Circle: latch the e-stop
+    release_button: 1          # Options: release the e-stop (both sticks centred)
     joy_timeout_s: 0.5         # joystick silent this long = e-stop
     publish_rate_hz: 20.0
     estop_rate_hz: 10.0
