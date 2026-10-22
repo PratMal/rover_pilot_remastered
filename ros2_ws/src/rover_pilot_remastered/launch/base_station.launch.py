@@ -18,7 +18,7 @@ def generate_launch_description():
         DeclareLaunchArgument('wheels', default_value='wheel_28cm', description='wheel profile in config/wheels'),
         DeclareLaunchArgument('device_id', default_value='0', description='joystick index for SDL'),
         Node(package='joy', executable='game_controller_node', name='joy', output='screen',
-             parameters=[{'device_id': LaunchConfiguration('device_id'), 'deadzone': 0.05, 'autorepeat_rate': 20.0}]),
+             parameters=[{'device_id': LaunchConfiguration('device_id'), 'deadzone': 0.0, 'autorepeat_rate': 20.0}]),
         Node(package='rover_pilot_remastered', executable='base_teleop', name='base_teleop', output='screen',
              parameters=[str(share / 'config' / 'drive.yaml'), wheels]),
     ])
