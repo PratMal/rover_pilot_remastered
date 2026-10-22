@@ -4,7 +4,7 @@ Safe drive control for the current rover: **one ESP32 driving four wheel motors*
 
 ```text
 BASE STATION LAPTOP                                    ROVER LAPTOP (192.168.1.68)                     DRIVE ESP32
-PS5 ─▶ joy/game_controller_node ─/joy─▶ base_teleop ─┬─ /cmd_vel (20 Hz) ──────▶ drive_node ─USB serial─▶ firmware ─▶ 4 motor drivers
+PS5 ─▶ joy/joy_node ─/joy─▶ base_teleop ─┬─ /cmd_vel (20 Hz) ──────▶ drive_node ─USB serial─▶ firmware ─▶ 4 motor drivers
                                                       └─ /rover/estop (10 Hz) ──▶            DRIVE_COMMAND 50 Hz
                                                                                              ◀── DRIVE_STATUS 10 Hz
 ```
@@ -122,14 +122,14 @@ cd ~/rover_pilot_remastered/ros2_ws && source /opt/ros/humble/setup.bash && colc
 Connect the PS5 controller (USB, or Bluetooth pairing in Ubuntu settings). Check the mapping once:
 
 ```bash
-ros2 run joy game_controller_node &          # then: ros2 topic echo /joy
+ros2 run joy joy_node &          # then: ros2 topic echo /joy
 ```
 
-- Push the left stick **up**: `axes[1]` should go to **+1.0**.
-- Push the right stick **left**: `axes[2]` should go to **+1.0**.
-- **Circle** should be `buttons[1]` and **Options** `buttons[6]`.
+- Push the left stick **up**: the `axes` index that goes to **+1.0** is `axis_linear`.
+- Push the right stick **left**: the `axes` index that goes to **+1.0** is `axis_angular`.
+- Press the buttons you want for e-stop, release and slow mode: their `buttons` indices are `estop_button`, `release_button`, `slow_button`.
 
-If any differ, change `axis_*`, `invert_*` or `*_button` in `config/drive.yaml` (base_teleop section).
+Put them in `config/drive.yaml` (base_teleop section; `invert_*` if a direction is reversed), commit and push, then pull and rebuild on the base station.
 
 ### 4. Every terminal on both machines
 

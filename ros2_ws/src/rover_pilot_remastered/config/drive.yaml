@@ -11,7 +11,7 @@
 
 base_teleop:
   ros__parameters:
-    # PS5 DualSense through joy's game_controller_node. Check with `ros2 topic echo /joy` (README).
+    # PS5 DualSense through joy's joy_node (base_station.launch.py). Check the indices with `ros2 topic echo /joy` (README).
     axis_linear: 1             # left stick up/down: up = +1 = forward
     axis_angular: 2            # right stick left/right: left = +1 = turn left
     invert_linear: false
